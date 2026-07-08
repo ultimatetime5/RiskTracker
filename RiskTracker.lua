@@ -1,89 +1,55 @@
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-local API_URL = "https://mtlxlyqmcpzzqnzzyyus.supabase.co/rest/v1/fish_it_inventory"
-local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bHhseXFtY3B6enFuenp5eXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0OTU5MDksImV4cCI6MjA5OTA3MTkwOX0.2M02hdfHtD-Bw2OQdUbcJLoqLEeqIFT5oOkkFFfvoKc"
+print("--- [MEMULAI SCANNING INVENTORY FISIK] ---")
 
-local req = request or (http and http.request) or http_request
+-- 1. Scan Modul Data Internal di ReplicatedStorage
+local success, save = pcall(function()
+    return ReplicatedStorage.CloudSave.GetSave:InvokeServer()
+end)
 
--- Fungsi nyari nilai di dalam tabel sedalam apa pun (Recursive Search)
-local function findInTable(t, targetKey)
-    if type(t) ~= "table" then return nil end
-    
-    -- Cek langsung di level ini
-    for k, v in pairs(t) do
-        if tostring(k):lower() == targetKey:lower() or tostring(k):lower():gsub("%s+", "") == targetKey:lower():gsub("%s+", "") then
-            return tonumber(v) or 0
-        end
-    end
-    
-    -- Masuk ke sub-tabel di dalamnya
-    for _, v in pairs(t) do
+if success and type(save) == "table" then
+    print("[FOUND] Data Save Berupa Tabel:")
+    for k, v in pairs(save) do
         if type(v) == "table" then
-            local res = findInTable(v, targetKey)
-            if res then return res end
-        end
-    end
-    return nil
-end
-
-local function sendInventory()
-    -- Ambil semua kemungkinan data save game
-    local save = nil
-    pcall(function()
-        save = game:GetService("ReplicatedStorage").CloudSave.GetSave:InvokeServer()
-    end)
-    
-    -- Jika InvokeServer gagal, coba ambil data cadangan dari LocalPlayer
-    if not save then
-        save = LocalPlayer:FindFirstChild("Save_Data") or LocalPlayer:FindFirstChild("leaderstats")
-    end
-
-    local function getVal(key)
-        if not save then return 0 end
-        if type(save) == "table" then
-            local found = findInTable(save, key)
-            return found or 0
+            print("  -> Sub-Tabel: " .. tostring(k))
+            for subK, subV in pairs(v) do
+                print("     • " .. tostring(subK) .. " = " .. tostring(subV))
+            end
         else
-            -- Jika berupa folder objek Roblox
-            local item = save:FindFirstChild(key, true)
-            return item and tonumber(item.Value) or 0
+            print("  • " .. tostring(k) .. " = " .. tostring(v))
         end
     end
+else
+    print("[INFO] Jalur CloudSave tidak mengembalikan tabel data.")
+end
 
-    local data = {
-        username = LocalPlayer.Name,
-        evolved_enchant = getVal("Evolved Enchant") or getVal("Evolved Enchant Stone") or getVal("EvolvedEnchant"),
-        runic_enchant = getVal("Runic Enchant") or getVal("Runic Enchant Stone") or getVal("RunicEnchant"),
-        secret_fish = getVal("Secret") or getVal("Caught") or 0,
-        ghostfinn_rod = getVal("Ghostfinn Rod") or getVal("GhostfinnRod"),
-        element_rod = getVal("Element Rod") or getVal("ElementRod"),
-        diamond_rod = getVal("Diamond Rod") or getVal("DiamondRod"),
-        ruby_gem = getVal("Ruby") or getVal("Ruby Gemstone") or getVal("RubyGem")
-    }
-
-    -- Print ke console Delta biar kamu tahu isi datanya sebelum dikirim
-    print("--- [TRACKER SEND LOG] ---")
-    print("Username: " .. tostring(data.username))
-    print("Evolved Enchant: " .. tostring(data.evolved_enchant))
-    print("Ghostfinn Rod: " .. tostring(data.ghostfinn_rod))
-
-    if req then
-        req({
-            Url = API_URL,
-            Method = "POST",
-            Headers = {
-                ["apikey"] = ANON_KEY,
-                ["Authorization"] = "Bearer " .. ANON_KEY,
-                ["Content-Type"] = "application/json"
-            },
-            Body = HttpService:JSONEncode(data)
-        })
+-- 2. Scan Folder atau Nilai Tersirat di ReplicatedStorage yang membawa nama player
+for _, v in pairs(ReplicatedStorage:GetChildren()) do
+    if v:IsA("Folder") and (v.Name:lower():find("data") or v.Name:lower():find("profile")) then
+        local pData = v:FindFirstChild(LocalPlayer.Name) or v:FindFirstChild(tostring(LocalPlayer.UserId))
+        if pData then
+            print("[FOUND] Folder Data Player di ReplicatedStorage: " .. v.Name)
+            for _, item in pairs(pData:GetChildren()) do
+                print("  • " .. item.Name .. " (" .. item.ClassName .. ") = " .. tostring(item.Value))
+            end
+        end
     end
 end
 
-task.spawn(sendInventory)
-while task.wait(60) do
-    sendInventory()
+-- 3. Scan Element UI Inventory di PlayerGui (Tempat teks jumlah item berada)
+local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+if pGui then
+    print("[SCANNING] Mencari teks angka di dalam PlayerGui...")
+    for _, v in pairs(pGui:GetDescendants()) do
+        if v:IsA("TextLabel") or v:IsA("TextBox") then
+            -- Cari UI yang teksnya berisi angka (kuantitas item) dan punya nama spesifik
+            if string.match(v.Text, "^%d+$") and #v.Name > 2 then
+                print("  • UI Name: " .. v.Name .. " | Text: " .. v.Text .. " | Parent: " .. v.Parent.Name)
+            end
+        end
+    end
 end
+
+print("--- [SCANNING SELESAI] ---")
