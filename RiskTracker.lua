@@ -1,9 +1,8 @@
--- Test Tracker Fish It (Direct Key Version)
+-- Final Fixed Tracker for Fish It
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Menggunakan URL dan API Key asli database kamu secara langsung
 local API_URL = "https://mtlxlyqmcpzzqnzzyyus.supabase.co/rest/v1/fish_it_inventory"
 local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bHhseXFtY3B6enFuenp5eXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0OTU5MDksImV4cCI6MjA5OTA3MTkwOX0.2M02hdfHtD-Bw2OQdUbcJLoqLEeqIFT5oOkkFFfvoKc"
 
@@ -28,8 +27,8 @@ local function sendInventory()
         ruby_gem = getStat("Save_Data", "Ruby")
     }
     
-    local success, result = pcall(function()
-        return request({
+    pcall(function()
+        request({
             Url = API_URL,
             Method = "POST",
             Headers = {
@@ -41,12 +40,6 @@ local function sendInventory()
             Body = HttpService:JSONEncode(data)
         })
     end)
-    
-    if success then
-        print("Tracker: HTTP Request Berhasil Dikirim!")
-    else
-        warn("Tracker HTTP Error: " .. tostring(result))
-    end
 end
 
 task.spawn(sendInventory)
