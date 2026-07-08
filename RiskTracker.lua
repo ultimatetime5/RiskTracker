@@ -4,27 +4,37 @@ local LocalPlayer = Players.LocalPlayer
 
 local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1493701449161642054/eSWJl9k9siGa1RVBMNT8InnxoMf6W96yRlMDORLhbMpezbXxxJaKqD-PeGPHv65VhGts"
 
--- Deteksi fungsi request bawaan executor mobile kamu
 local req = request or (http and http.request) or http_request
 
 local function getInventoryValue(itemName)
     local reg = getreg or debug.getregistry
     if reg then
         for _, v in pairs(reg()) do
-            if type(v) == "table" and v.Inventory and type(v.Inventory) == "table" then
-                if v.Inventory[itemName] then
-                    return tonumber(v.Inventory[itemName]) or 0
-                end
+            if type(v) == "table" then
+                -- PEREDAM CRASH: Pcall akan mengabaikan objek Roact yang memicu error merah
+                local success, result = pcall(function()
+                    if v.Inventory and type(v.Inventory) == "table" then
+                        if v.Inventory[itemName] then
+                            return tonumber(v.Inventory[itemName])
+                        end
+                    end
+                end)
+                if success and result then return result end
             end
         end
     end
     
     if getgc then
         for _, v in pairs(getgc(true)) do
-            if type(v) == "table" and v.Inventory and type(v.Inventory) == "table" then
-                if v.Inventory[itemName] then
-                    return tonumber(v.Inventory[itemName]) or 0
-                end
+            if type(v) == "table" then
+                local success, result = pcall(function()
+                    if v.Inventory and type(v.Inventory) == "table" then
+                        if v.Inventory[itemName] then
+                            return tonumber(v.Inventory[itemName])
+                        end
+                    end
+                end)
+                if success and result then return result end
             end
         end
     end
@@ -46,11 +56,11 @@ local function sendToDiscord()
             ["color"] = 3447003,
             ["fields"] = {
                 {["name"] = "👤 Player Name", ["value"] = "```" .. LocalPlayer.Name .. "```", ["inline"] = false},
-                {["name"] = "🔮 Enchant Stones", ["value"] = "• Evolved Enchant: **" .. evolved .. "**\n• Runic Enchant: **" .. runic .. "**", ["inline"] = true},
-                {["name"] = "💎 Gems", ["value"] = "• Ruby Gemstone: **" .. ruby .. "**", ["inline"] = true},
-                {["name"] = "🎣 Rods / Alat Pancing", ["value"] = "• Ghostfinn Rod: **" .. ghostfinn .. "**\n• Element Rod: **" .. element .. "**\n• Diamond Rod: **" .. diamond .. "**", ["inline"] = false}
+                {["name"] = "🔮 Enchant Stones", ["value"] = "• Evolved Enchant: **" .. (evolved or 0) .. "**\n• Runic Enchant: **" .. (runic or 0) .. "**", ["inline"] = true},
+                {["name"] = "💎 Gems", ["value"] = "• Ruby Gemstone: **" .. (ruby or 0) .. "**", ["inline"] = true},
+                {["name"] = "🎣 Rods / Alat Pancing", ["value"] = "• Ghostfinn Rod: **" .. (ghostfinn or 0) .. "**\n• Element Rod: **" .. (element or 0) .. "**\n• Diamond Rod: **" .. (diamond or 0) .. "**", ["inline"] = false}
             },
-            ["footer"] = {["text"] = "R-Helper v2.4 • Auto Loop 60s"},
+            ["footer"] = {["text"] = "R-Helper v2.4 • Khusus Mobile"},
             ["timestamp"] = DateTime.now():ToIsoDate()
         }}
     }
