@@ -1,6 +1,5 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 local API_URL = "https://mtlxlyqmcpzzqnzzyyus.supabase.co/rest/v1/fish_it_inventory"
@@ -8,39 +7,47 @@ local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 local req = request or (http and http.request) or http_request
 
--- Fungsi melacak item inventori fisik di dalam data pemain/ReplicatedStorage
-local function getInventoryItem(itemName)
-    -- Jalur 1: Cek folder internal PlayerGui data jika tersimpan di klien
-    local inventoryFolder = LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChild("Items")
-    if inventoryFolder then
-        local item = inventoryFolder:FindFirstChild(itemName)
-        if item then return tonumber(item.Value) or 0 end
+-- Mengambil fungsi pemanggil data internal dari script referensi Fish It
+local function getInternalInventory()
+    local success, save = pcall(function()
+        -- Menembak sistem Save_Data bawaan game Fish It menggunakan remote/modul jika tersedia
+        return game:GetService("ReplicatedStorage").CloudSave.GetSave:InvokeServer()
+    end)
+    if success and type(save) == "table" then
+        return save
     end
     
-    -- Jalur 2: Cek apakah data disimpan menggunakan modul ReplicatedStorage bawaan game
-    local playerFolder = ReplicatedStorage:FindFirstChild("PlayerData") or ReplicatedStorage:FindFirstChild("Profiles")
-    if playerFolder then
-        local myData = playerFolder:FindFirstChild(LocalPlayer.Name) or playerFolder:FindFirstChild(tostring(LocalPlayer.UserId))
-        if myData then
-            local target = myData:FindFirstChild(itemName, true)
-            if target then return tonumber(target.Value) or 0 end
-        end
+    -- Cadangan jika disimpan di save_data folder klien
+    local altSave = LocalPlayer:FindFirstChild("Save_Data")
+    if altSave then
+        return altSave
     end
-    
-    return 0
+    return nil
 end
 
 local function sendInventory()
+    local inv = getInternalInventory()
+    
+    -- Ambil data nilai, jika tabel kosong atau gagal maka otomatis 0
+    local function val(itemName)
+        if not inv then return 0 end
+        if type(inv) == "table" then
+            return tonumber(inv[itemName]) or 0
+        else
+            local item = inv:FindFirstChild(itemName)
+            return item and tonumber(item.Value) or 0
+        end
+    end
+
     local data = {
         username = LocalPlayer.Name,
-        -- Menembak nama item fisik asli inventori Fish It
-        evolved_enchant = getInventoryItem("Evolved Enchant") or getInventoryItem("EvolvedEnchantStone"),
-        runic_enchant = getInventoryItem("Runic Enchant") or getInventoryItem("RunicEnchantStone"),
-        secret_fish = 0,
-        ghostfinn_rod = getInventoryItem("Ghostfinn Rod") or getInventoryItem("GhostfinnRod"),
-        element_rod = getInventoryItem("Element Rod") or getInventoryItem("ElementRod"),
-        diamond_rod = getInventoryItem("Diamond Rod") or getInventoryItem("DiamondRod"),
-        ruby_gem = getInventoryItem("Ruby") or getInventoryItem("RubyGemstone")
+        evolved_enchant = val("Evolved Enchant") + val("EvolvedEnchantStone"),
+        runic_enchant = val("Runic Enchant") + val("RunicEnchantStone"),
+        secret_fish = val("Secret") or 0,
+        ghostfinn_rod = val("Ghostfinn Rod") or val("GhostfinnRod"),
+        element_rod = val("Element Rod") or val("ElementRod"),
+        diamond_rod = val("Diamond Rod") or val("DiamondRod"),
+        ruby_gem = val("Ruby") or val("RubyGemstone")
     }
 
     if req then
