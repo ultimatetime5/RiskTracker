@@ -2,79 +2,74 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local API_URL = "https://mtlxlyqmcpzzqnzzyyus.supabase.co/rest/v1/fish_it_inventory"
-local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10bHhseXFtY3B6enFuenp5eXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0OTU5MDksImV4cCI6MjA5OTA3MTkwOX0.2M02hdfHtD-Bw2OQdUbcJLoqLEeqIFT5oOkkFFfvoKc"
+local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1493701449161642054/eSWJl9k9siGa1RVBMNT8InnxoMf6W96yRlMDORLhbMpezbXxxJaKqD-PeGPHv65VhGts"
 
+-- Deteksi fungsi request bawaan executor mobile kamu
 local req = request or (http and http.request) or http_request
 
--- Fungsi pencarian memori internal super aman (Bypass error "not a valid member")
-local function safeFetchMemory(itemName)
+local function getInventoryValue(itemName)
     local reg = getreg or debug.getregistry
     if reg then
-        local success, result = pcall(function()
-            for _, v in pairs(reg()) do
-                if type(v) == "table" then
-                    -- Jalur 1: Jika data inventori ditaruh di dalam sub-tabel khusus
-                    if v.Inventory and type(v.Inventory) == "table" and v.Inventory[itemName] then
-                        return tonumber(v.Inventory[itemName])
-                    end
-                    -- Jalur 2: Jika data inventori langsung digabung di tabel utama save
-                    if v[itemName] and (type(v[itemName]) == "number" or type(v[itemName]) == "string") then
-                        return tonumber(v[itemName])
-                    end
+        for _, v in pairs(reg()) do
+            if type(v) == "table" and v.Inventory and type(v.Inventory) == "table" then
+                if v.Inventory[itemName] then
+                    return tonumber(v.Inventory[itemName]) or 0
                 end
             end
-        end)
-        if success and result then return result end
+        end
     end
     
     if getgc then
-        local success, result = pcall(function()
-            for _, v in pairs(getgc(true)) do
-                if type(v) == "table" then
-                    if v.Inventory and type(v.Inventory) == "table" and v.Inventory[itemName] then
-                        return tonumber(v.Inventory[itemName])
-                    end
-                    if v[itemName] and (type(v[itemName]) == "number" or type(v[itemName]) == "string") then
-                        return tonumber(v[itemName])
-                    end
+        for _, v in pairs(getgc(true)) do
+            if type(v) == "table" and v.Inventory and type(v.Inventory) == "table" then
+                if v.Inventory[itemName] then
+                    return tonumber(v.Inventory[itemName]) or 0
                 end
             end
-        end)
-        if success and result then return result end
+        end
     end
     return 0
 end
 
-local function sendInventory()
-    -- Membaca data item riil menggunakan nama string asli dari script referensi game
-    local data = {
-        username = LocalPlayer.Name,
-        evolved_enchant = safeFetchMemory("Evolved Enchant Stone"),
-        runic_enchant = safeFetchMemory("Runic Enchant Stone"),
-        secret_fish = 0,
-        ghostfinn_rod = safeFetchMemory("Ghostfinn Rod"),
-        element_rod = safeFetchMemory("Element Rod"),
-        diamond_rod = safeFetchMemory("Diamond Rod"),
-        ruby_gem = safeFetchMemory("Ruby Gemstone")
+local function sendToDiscord()
+    local evolved = getInventoryValue("Evolved Enchant Stone")
+    local runic = getInventoryValue("Runic Enchant Stone")
+    local ghostfinn = getInventoryValue("Ghostfinn Rod")
+    local element = getInventoryValue("Element Rod")
+    local diamond = getInventoryValue("Diamond Rod")
+    local ruby = getInventoryValue("Ruby Gemstone")
+
+    local payload = {
+        ["embeds"] = {{
+            ["title"] = "📦 Fish It - Inventory Tracker",
+            ["description"] = "Berikut adalah laporan penyimpanan inventori akun saat ini.",
+            ["color"] = 3447003,
+            ["fields"] = {
+                {["name"] = "👤 Player Name", ["value"] = "```" .. LocalPlayer.Name .. "```", ["inline"] = false},
+                {["name"] = "🔮 Enchant Stones", ["value"] = "• Evolved Enchant: **" .. evolved .. "**\n• Runic Enchant: **" .. runic .. "**", ["inline"] = true},
+                {["name"] = "💎 Gems", ["value"] = "• Ruby Gemstone: **" .. ruby .. "**", ["inline"] = true},
+                {["name"] = "🎣 Rods / Alat Pancing", ["value"] = "• Ghostfinn Rod: **" .. ghostfinn .. "**\n• Element Rod: **" .. element .. "**\n• Diamond Rod: **" .. diamond .. "**", ["inline"] = false}
+            },
+            ["footer"] = {["text"] = "R-Helper v2.4 • Auto Loop 60s"},
+            ["timestamp"] = DateTime.now():ToIsoDate()
+        }}
     }
 
     if req then
-        req({
-            Url = API_URL,
-            Method = "POST",
-            Headers = {
-                ["apikey"] = ANON_KEY,
-                ["Authorization"] = "Bearer " .. ANON_KEY,
-                ["Content-Type"] = "application/json"
-            },
-            Body = HttpService:JSONEncode(data)
-        })
+        pcall(function()
+            req({
+                Url = DISCORD_WEBHOOK_URL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payload)
+            })
+        end)
     end
 end
 
--- Eksekusi instan dan ulangi otomatis setiap 60 detik
-task.spawn(sendInventory)
+task.spawn(sendToDiscord)
 while task.wait(60) do
-    sendInventory()
+    sendToDiscord()
 end
