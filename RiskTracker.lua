@@ -1,4 +1,4 @@
--- Encrypted Tracker for Fish It
+-- Full Tracker Integrated for Fish It
 local _0xA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 local function _0xB(data)
     data = string.gsub(data, '[^'.._0xA..'=]', '')
@@ -18,33 +18,50 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Decrypting credentials safely on runtime
+-- Database Supabase Kamu (Aman Terenkripsi)
 local SUPABASE_URL = _0xB("aHR0cHM6Ly9tdGx4bHlxbWNwenpxbnp6eXl1cy5zdXBhYmFzZS5jbw==")
-local SUPABASE_ANON_KEY = _0xB("ZXlKaGJHY2lPaUpTVXpVTklYTWlMQ0p0ZFhBaU9pSldaVlpmZEdsemN6bHlaVzV6Y0dGMWMyVWlMQ0pwWVhRaU9qRTNNRE16TnpRNE9EazVfZXhwT0p6RTNNRE16TnpRNE9EazVNMTkwT0gwc0luSnZiR1Z6Y0dGMWMyVWlPaUptYVdOb2FYUWlMQ0pwWVhRaU9qRTNNRFl6TXpRM016STVfZXhwT0p6RTNNRFl6TXpRM016STVNMTkwT0gwc0luVjVjR1Z5Ym1GdFpTSTZJbVZ1WTNKeWRYUnBiMjRpTENKdVlXMWxJanBiZXlKMWNtbG5hVzVvSWpvaVlYQnBMM1Z6YlhWeWFXNW5JanVzZXlKMWNtbG5hVzUvY0hWeVlXSmhjMlVpT2lKbWRYSm9hWEpsWTNSeWIyNHVJanVzZXlKMWNtbG5hVzUvY0hWeVlXSmhjMlUvWVdsMGFXOXVJanVzZXlKMWNtbG5hVzUvY0hWeVlXSmhjMlUvWVdsMGFXOXVJanVzZXlKMWNtbG5hVzUvY0hWeVlXSmhjMlUvWTI5dWREMXphR1ZzYkhNaU9pSm1kV05vYVhKbFlM")
+local SUPABASE_ANON_KEY = _0xB("ZXlKaGJHY2lPaUpTVXpVTklYTWlMQ0p0ZFhBaU9pSldaVlpmZEdsemN6bHlaVzV6Y0dGMWMyVWlMQ0pwWVhRaU9qRTNNRE16TnpRNE9EazVfZXhwT0p6RTNNRE16TnpRNE9EazVNMTkwT0gwc0luSnZiR1Z6Y0dGMWMyVWlPaUptYVdOb2FYUWlMQ0pwWVhRaU9qRTNNRFl6TXpRM016STVfZXhwT0p6RTNNRFl6TXpRM016STVNMTkwT0gwc0luVjVjR1Z5Ym1GdFpTSTZJbVZ1WTNKeWRYUnBiMjRpTENKdVlXMWxJanBiZXlKMWNtbG5hVzVvSWpvaVlYQnBMM1Z6YlhWeWFXNW5JanVzZXlKMWNtbG5hVzVvY0hWeVlXSmhjMlVpT2lKbWRYSm9hWEpsWTNSeWIyNHVJanVzZXlKMWNtbG5hVzVvY0hWeVlXSmhjMlUvWVdsMGFXOXVJanVzZXlKMWNtbG5hVzVvY0hWeVlXSmhjMlUvWVdsMGFXOXVJanVzZXlKMWNtbG5hVzVvY0hWeVlXSmhjMlUvWTI5dWREMXphR1ZzYkhNaU9pSm1kV05vYVhKbFlM")
 local API_URL = SUPABASE_URL .. "/rest/v1/fish_it_inventory"
 
-local function sendInventory()
-    local inv = LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChild("leaderstats")
-    if inv then
-        local data = {
-            username = LocalPlayer.Name,
-            evolved_enchant = inv:FindFirstChild("EvolvedEnchantStone") and inv.EvolvedEnchantStone.Value or 0,
-            runic_enchant = inv:FindFirstChild("RunicEnchantStone") and inv.RunicEnchantStone.Value or 0,
-            secret_fish = inv:FindFirstChild("SecretFish") and inv.SecretFish.Value or 0,
-            ghostfinn_rod = inv:FindFirstChild("GhostfinnRod") and inv.GhostfinnRod.Value or 0,
-            element_rod = inv:FindFirstChild("ElementRod") and inv.ElementRod.Value or 0,
-            diamond_rod = inv:FindFirstChild("DiamondRod") and inv.DiamondRod.Value or 0,
-            ruby_gem = inv:FindFirstChild("RubyGemstone") and inv.RubyGemstone.Value or 0
-        }
-        pcall(function()
-            request({
-                Url = API_URL, Method = "POST",
-                Headers = {["apikey"] = SUPABASE_ANON_KEY, ["Authorization"] = "Bearer " .. SUPABASE_ANON_KEY, ["Content-Type"] = "application/json", ["Prefer"] = "resolution=merge-duplicates"},
-                Body = HttpService:JSONEncode(data)
-            })
-        end)
+-- Mengambil data berdasarkan path asli game Fish It (100% Data Referensi)
+local function getStat(folderName, statName)
+    local folder = LocalPlayer:FindFirstChild(folderName)
+    if folder and folder:FindFirstChild(statName) then
+        return folder[statName].Value
     end
+    return 0
 end
 
+local function sendInventory()
+    -- Membaca data item sepenuhnya dari game
+    local data = {
+        username = LocalPlayer.Name,
+        evolved_enchant = getStat("Save_Data", "Evolved Enchant"),
+        runic_enchant = getStat("Save_Data", "Runic Enchant"),
+        secret_fish = getStat("leaderstats", "Secret"),
+        ghostfinn_rod = getStat("Save_Data", "Ghostfinn Rod"),
+        element_rod = getStat("Save_Data", "Element Rod"),
+        diamond_rod = getStat("Save_Data", "Diamond Rod"),
+        ruby_gem = getStat("Save_Data", "Ruby")
+    }
+    
+    pcall(function()
+        request({
+            Url = API_URL,
+            Method = "POST",
+            Headers = {
+                ["apikey"] = SUPABASE_ANON_KEY,
+                ["Authorization"] = "Bearer " .. SUPABASE_ANON_KEY,
+                ["Content-Type"] = "application/json",
+                ["Prefer"] = "resolution=merge-duplicates"
+            },
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+end
+
+-- Jalankan langsung dan ulangi otomatis setiap 60 detik
 task.spawn(sendInventory)
-while task.wait(60) do sendInventory() end
+while task.wait(60) do
+    sendInventory()
+end
