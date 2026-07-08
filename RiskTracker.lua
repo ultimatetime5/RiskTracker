@@ -7,41 +7,67 @@ local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 local req = request or (http and http.request) or http_request
 
--- Mengambil modul data save internal dari game Fish It
-local function getInventoryData()
-    local success, save = pcall(function()
-        return game:GetService("ReplicatedStorage").CloudSave.GetSave:InvokeServer()
-    end)
-    if success and type(save) == "table" then
-        return save
+-- Fungsi nyari nilai di dalam tabel sedalam apa pun (Recursive Search)
+local function findInTable(t, targetKey)
+    if type(t) ~= "table" then return nil end
+    
+    -- Cek langsung di level ini
+    for k, v in pairs(t) do
+        if tostring(k):lower() == targetKey:lower() or tostring(k):lower():gsub("%s+", "") == targetKey:lower():gsub("%s+", "") then
+            return tonumber(v) or 0
+        end
+    end
+    
+    -- Masuk ke sub-tabel di dalamnya
+    for _, v in pairs(t) do
+        if type(v) == "table" then
+            local res = findInTable(v, targetKey)
+            if res then return res end
+        end
     end
     return nil
 end
 
 local function sendInventory()
-    local save = getInventoryData()
+    -- Ambil semua kemungkinan data save game
+    local save = nil
+    pcall(function()
+        save = game:GetService("ReplicatedStorage").CloudSave.GetSave:InvokeServer()
+    end)
     
-    local function val(key)
+    -- Jika InvokeServer gagal, coba ambil data cadangan dari LocalPlayer
+    if not save then
+        save = LocalPlayer:FindFirstChild("Save_Data") or LocalPlayer:FindFirstChild("leaderstats")
+    end
+
+    local function getVal(key)
         if not save then return 0 end
-        -- Mengecek apakah item ada di dalam sub-tabel Inventory atau tabel utama save
-        if save.Inventory and save.Inventory[key] then
-            return tonumber(save.Inventory[key]) or 0
-        elseif save[key] then
-            return tonumber(save[key]) or 0
+        if type(save) == "table" then
+            local found = findInTable(save, key)
+            return found or 0
+        else
+            -- Jika berupa folder objek Roblox
+            local item = save:FindFirstChild(key, true)
+            return item and tonumber(item.Value) or 0
         end
-        return 0
     end
 
     local data = {
         username = LocalPlayer.Name,
-        evolved_enchant = val("Evolved Enchant Stone"),
-        runic_enchant = val("Runic Enchant Stone"),
-        secret_fish = val("Secret") or 0,
-        ghostfinn_rod = val("Ghostfinn Rod"),
-        element_rod = val("Element Rod"),
-        diamond_rod = val("Diamond Rod"),
-        ruby_gem = val("Ruby Gemstone")
+        evolved_enchant = getVal("Evolved Enchant") or getVal("Evolved Enchant Stone") or getVal("EvolvedEnchant"),
+        runic_enchant = getVal("Runic Enchant") or getVal("Runic Enchant Stone") or getVal("RunicEnchant"),
+        secret_fish = getVal("Secret") or getVal("Caught") or 0,
+        ghostfinn_rod = getVal("Ghostfinn Rod") or getVal("GhostfinnRod"),
+        element_rod = getVal("Element Rod") or getVal("ElementRod"),
+        diamond_rod = getVal("Diamond Rod") or getVal("DiamondRod"),
+        ruby_gem = getVal("Ruby") or getVal("Ruby Gemstone") or getVal("RubyGem")
     }
+
+    -- Print ke console Delta biar kamu tahu isi datanya sebelum dikirim
+    print("--- [TRACKER SEND LOG] ---")
+    print("Username: " .. tostring(data.username))
+    print("Evolved Enchant: " .. tostring(data.evolved_enchant))
+    print("Ghostfinn Rod: " .. tostring(data.ghostfinn_rod))
 
     if req then
         req({
