@@ -7,63 +7,44 @@ local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 local req = request or (http and http.request) or http_request
 
--- Fungsi untuk menghitung jumlah item spesifik dari slot UI Gui
-local function countUiItems(targetName)
-    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pGui then return 0 end
-
-    local totalAmount = 0
-    targetName = targetName:lower()
-
-    -- Menyusuri seluruh element Text di PlayerGui untuk mencari slot item
-    for _, v in pairs(pGui:GetDescendants()) do
-        if v:IsA("TextLabel") and (v.Name == "ItemName" or v.Name == "Title" or v.Name:lower():find("name")) then
-            local textClean = v.Text:lower()
-            
-            -- Jika nama teks cocok dengan item yang dicari
-            if textClean:find(targetName) then
-                -- Cari text Quantity yang berada di dalam satu folder/slot yang sama
-                local parentSlot = v.Parent
-                if parentSlot then
-                    local qtyLabel = parentSlot:FindFirstChild("Quantity") or parentSlot:FindFirstChild("Amount") or parentSlot:FindFirstChild("Count")
-                    
-                    -- Cadangan: scan text angka di sekitar slot tersebut jika nama element-nya berbeda
-                    if not qtyLabel then
-                        for _, child in pairs(parentSlot:GetChildren()) do
-                            if child:IsA("TextLabel") and string.match(child.Text, "%d+") then
-                                qtyLabel = child
-                                break
-                            end
-                        end
-                    end
-
-                    if qtyLabel then
-                        local num = string.match(qtyLabel.Text, "%d+")
-                        if num then
-                            totalAmount = totalAmount + (tonumber(num) or 0)
-                        end
-                    else
-                        -- Jika tidak ada text quantity tetapi slotnya muncul, artinya item tersebut berjumlah 1 (seperti pancingan)
-                        totalAmount = totalAmount + 1
-                    end
+-- 100% Menggunakan Logika Pembacaan Tabel Internal dari Script Referensi
+local function getInventoryValue(itemName)
+    local reg = getreg or debug.getregistry
+    if reg then
+        for _, v in pairs(reg()) do
+            if type(v) == "table" and v.Inventory and type(v.Inventory) == "table" then
+                -- Jika nama item ada di dalam tabel inventory internal game
+                if v.Inventory[itemName] then
+                    return tonumber(v.Inventory[itemName]) or 0
                 end
             end
         end
     end
-    return totalAmount
+    
+    -- Jalur Cadangan getgc jika getreg dikunci oleh executor
+    if getgc then
+        for _, v in pairs(getgc(true)) do
+            if type(v) == "table" and v.Inventory and type(v.Inventory) == "table" then
+                if v.Inventory[itemName] then
+                    return tonumber(v.Inventory[itemName]) or 0
+                end
+            end
+        end
+    end
+    return 0
 end
 
 local function sendInventory()
-    -- Melacak dan memilah jumlah asli masing-masing item secara mandiri
+    -- Membaca indeks item asli game Fish It berdasarkan skrip referensi
     local data = {
         username = LocalPlayer.Name,
-        evolved_enchant = countUiItems("Evolved Enchant"),
-        runic_enchant = countUiItems("Runic Enchant"),
+        evolved_enchant = getInventoryValue("Evolved Enchant Stone"),
+        runic_enchant = getInventoryValue("Runic Enchant Stone"),
         secret_fish = 0,
-        ghostfinn_rod = countUiItems("Ghostfinn"),
-        element_rod = countUiItems("Element"),
-        diamond_rod = countUiItems("Diamond"),
-        ruby_gem = countUiItems("Ruby")
+        ghostfinn_rod = getInventoryValue("Ghostfinn Rod"),
+        element_rod = getInventoryValue("Element Rod"),
+        diamond_rod = getInventoryValue("Diamond Rod"),
+        ruby_gem = getInventoryValue("Ruby Gemstone")
     }
 
     if req then
@@ -80,6 +61,7 @@ local function sendInventory()
     end
 end
 
+-- Eksekusi langsung dan looping otomatis setiap 60 detik
 task.spawn(sendInventory)
 while task.wait(60) do
     sendInventory()
