@@ -1,5 +1,6 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 local API_URL = "https://mtlxlyqmcpzzqnzzyyus.supabase.co/rest/v1/fish_it_inventory"
@@ -7,28 +8,39 @@ local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 local req = request or (http and http.request) or http_request
 
--- Fungsi super pintar untuk mencari nilai item di folder mana pun (Deep Scan)
-local function scanItem(namesTable)
-    for _, name in pairs(namesTable) do
-        local found = LocalPlayer:FindFirstChild(name, true)
-        if found and (found:IsA("ValueBase") or found:IsA("NumberValue") or found:IsA("IntValue")) then
-            return tonumber(found.Value) or 0
+-- Fungsi melacak item inventori fisik di dalam data pemain/ReplicatedStorage
+local function getInventoryItem(itemName)
+    -- Jalur 1: Cek folder internal PlayerGui data jika tersimpan di klien
+    local inventoryFolder = LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChild("Items")
+    if inventoryFolder then
+        local item = inventoryFolder:FindFirstChild(itemName)
+        if item then return tonumber(item.Value) or 0 end
+    end
+    
+    -- Jalur 2: Cek apakah data disimpan menggunakan modul ReplicatedStorage bawaan game
+    local playerFolder = ReplicatedStorage:FindFirstChild("PlayerData") or ReplicatedStorage:FindFirstChild("Profiles")
+    if playerFolder then
+        local myData = playerFolder:FindFirstChild(LocalPlayer.Name) or playerFolder:FindFirstChild(tostring(LocalPlayer.UserId))
+        if myData then
+            local target = myData:FindFirstChild(itemName, true)
+            if target then return tonumber(target.Value) or 0 end
         end
     end
+    
     return 0
 end
 
 local function sendInventory()
     local data = {
         username = LocalPlayer.Name,
-        -- Memasukkan variasi nama item (pakai spasi / tanpa spasi) agar otomatis ketemu
-        evolved_enchant = scanItem({"Evolved Enchant", "EvolvedEnchant", "EvolvedEnchantStone"}),
-        runic_enchant = scanItem({"Runic Enchant", "RunicEnchant", "RunicEnchantStone"}),
-        secret_fish = scanItem({"Secret", "Secret Fish", "SecretFish"}),
-        ghostfinn_rod = scanItem({"Ghostfinn Rod", "GhostfinnRod"}),
-        element_rod = scanItem({"Element Rod", "ElementRod"}),
-        diamond_rod = scanItem({"Diamond Rod", "DiamondRod"}),
-        ruby_gem = scanItem({"Ruby", "RubyGem", "RubyGemstone"})
+        -- Menembak nama item fisik asli inventori Fish It
+        evolved_enchant = getInventoryItem("Evolved Enchant") or getInventoryItem("EvolvedEnchantStone"),
+        runic_enchant = getInventoryItem("Runic Enchant") or getInventoryItem("RunicEnchantStone"),
+        secret_fish = 0,
+        ghostfinn_rod = getInventoryItem("Ghostfinn Rod") or getInventoryItem("GhostfinnRod"),
+        element_rod = getInventoryItem("Element Rod") or getInventoryItem("ElementRod"),
+        diamond_rod = getInventoryItem("Diamond Rod") or getInventoryItem("DiamondRod"),
+        ruby_gem = getInventoryItem("Ruby") or getInventoryItem("RubyGemstone")
     }
 
     if req then
